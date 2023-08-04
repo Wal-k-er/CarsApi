@@ -24,11 +24,6 @@ public class CarRepository : ICarRepository
         return await _context.Cars.FirstOrDefaultAsync(c => c.Id == id);
     }
 
-    public async Task<Car> GetCar(string name)
-    {
-        return await _context.Cars.FirstOrDefaultAsync(c => c.Name.Trim().ToLower() == name.Trim().ToLower());
-    }
-
     public async Task<ICollection<Manufacture>> GetCarManufactures(int carId)
     {
         var carManufactures = _context.CarManufactures
