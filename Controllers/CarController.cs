@@ -44,9 +44,9 @@ public class CarController : Controller
             var response = await _mediator.Send(query);
             return Ok(response);
         }
-        catch (EntityNotFoundException)
+        catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 
@@ -61,9 +61,9 @@ public class CarController : Controller
             var response = await _mediator.Send(query);
             return Ok(response);
         }
-        catch (EntityNotFoundException)
+        catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 
@@ -100,7 +100,7 @@ public class CarController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 
@@ -119,7 +119,7 @@ public class CarController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 }
