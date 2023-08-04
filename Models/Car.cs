@@ -11,6 +11,7 @@ public class Car
     public string Name { get; set; }
     public DateTime DateProduction { get; set; }
     public Category Category { get; set; }
+    public float Price { get; set; }
     public ICollection<CarManufacture> CarManufactures { get; set; }
     public ICollection<OrderItem> OrderItems { get; set; }
 }

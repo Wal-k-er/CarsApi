@@ -35,12 +35,12 @@ public class MappingProfiles: Profile
                     opt.MapFrom(p => p.Car.Id));
         
         CreateMap<Order, OrderDto>()
-            .ForMember(o => 
-                o.CreatedDate, opt => 
-                opt.MapFrom(d => d.CreatedDate))
             .ForMember(oi => 
                 oi.OrderItems, opt => 
                 opt.MapFrom(o => o.OrderItems));
-        
+        CreateMap<OrderDto, Order>()
+            .ForMember(oi=>oi.OrderItems,
+                opt=>opt.Ignore());
+
     }
 }

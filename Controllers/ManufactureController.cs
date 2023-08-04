@@ -1,8 +1,9 @@
-﻿using AutoMapper;
-using Cars.Dto;
-using Cars.Interfaces;
+﻿using Cars.Dto;
+using Cars.Exceptions;
+using Cars.Features.ManufactureFeatures.Commands;
+using Cars.Features.ManufactureFeatures.Queries;
 using Cars.Models;
-using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Cars.Controllers;
@@ -11,121 +12,81 @@ namespace Cars.Controllers;
 [ApiController]
 public class ManufactureController : Controller
 {
-    private readonly ICarRepository _carRepository;
+    //Внедрение зависимости
+    private readonly IMediator _mediator;
 
-    private readonly ICountryRepository _countryRepository;
-
-    //Внедрение зависимостей
-    private readonly IManufactureRepository _manufactureRepository;
-    private readonly IMapper _mapper;
-    private readonly IValidator<ManufactureDto> _validator;
-
-    public ManufactureController(IManufactureRepository manufactureRepository,
-        ICountryRepository countryRepository, ICarRepository carRepository,
-        IValidator<ManufactureDto> validator, IMapper mapper)
+    public ManufactureController(IMediator mediator)
     {
-        _manufactureRepository = manufactureRepository;
-        _countryRepository = countryRepository;
-        _carRepository = carRepository;
-        _validator = validator;
-        _mapper = mapper;
+        _mediator = mediator;
     }
 
     //Получение списка производств
     [HttpGet]
     [ProducesResponseType(200, Type = typeof(ICollection<Manufacture>))]
-    public IActionResult GetManufactures()
+    public async Task<IActionResult> GetManufactures()
     {
-        var manufactures = _mapper.Map<List<ManufactureDto>>(_manufactureRepository.GetManufactures());
+        var query = new GetAllManufactures();
+        var response = await _mediator.Send(query);
 
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        return Ok(manufactures);
+        return Ok(response);
     }
 
     //Получение информации о производстве
     [HttpGet("{manufactureId}")]
     [ProducesResponseType(200, Type = typeof(Manufacture))]
     [ProducesResponseType(400)]
-    public IActionResult GetManufacture(int manufactureId)
+    public async Task<IActionResult> GetManufacture(int manufactureId)
     {
-        if (!_manufactureRepository.ManufactureExists(manufactureId))
+        try
+        {
+            var query = new GetManufactureById(manufactureId);
+            var response = await _mediator.Send(query);
+            return Ok(response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-
-        var manufacture = _mapper.Map<ManufactureDto>(_manufactureRepository.GetManufacture(manufactureId));
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        return Ok(manufacture);
+        }
     }
 
     //Получение списка машин, производящихся на заводе
     [HttpGet("{manufactureId}/cars")]
     [ProducesResponseType(200, Type = typeof(ICollection<Car>))]
-    public IActionResult GetCarsByManufacture(int manufactureId)
+    public async Task<IActionResult> GetCarsByManufacture(int manufactureId)
     {
-        if (!_manufactureRepository.ManufactureExists(manufactureId))
+        try
+        {
+            var query = new GetCarsByManufacture(manufactureId);
+            var response = await _mediator.Send(query);
+            return Ok(response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-
-        var carsByManufacture = _mapper.Map<List<CarDto>>(
-            _manufactureRepository.GetCarsByManufacture(manufactureId));
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        return Ok(carsByManufacture);
+        }
     }
 
     //Внесение информации о производстве
     [HttpPost]
     [ProducesResponseType(204)]
     [ProducesResponseType(400)]
-    public IActionResult CreateManufacture([FromBody] ManufactureDto manufactureCreate, [FromQuery] int countryId)
+    public async Task<IActionResult> CreateManufacture([FromBody] ManufactureDto manufactureCreate,
+        [FromQuery] int countryId)
     {
-        var validationResult = _validator.Validate(manufactureCreate);
-
-        if (!validationResult.IsValid) return BadRequest(validationResult.Errors);
-
-        var manufacture = _manufactureRepository
-            .GetManufactures()
-            .FirstOrDefault(c => c.Name.Trim().ToLower() ==
-                                 manufactureCreate.Name.Trim().ToLower());
-
-        if (manufacture != null)
+        try
         {
-            ModelState.AddModelError("", "Производство уже есть");
-            return StatusCode(422, ModelState);
+            var command = new CreateManufacture(manufactureCreate, countryId);
+            var response = await _mediator.Send(command);
+            return Ok("Создано производство " + response);
         }
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var manufactureMap = _mapper.Map<Manufacture>(manufactureCreate);
-
-        manufactureMap.Country = _countryRepository.GetCountry(countryId);
-
-        if (!_manufactureRepository.CreateManufacture(manufactureMap))
+        catch (EntityNotFoundException e)
         {
-            ModelState.AddModelError("", "В процессе сохранения что-то пошло не так");
-            return StatusCode(500, ModelState);
+            return NotFound();
         }
-
-        foreach (var manufacturedCar in manufactureCreate.ManufacturedCars)
+        catch (InvalidRequestBodyException)
         {
-            var car = _carRepository.GetCar(manufacturedCar.CarId);
-            var carManufacture = new CarManufacture
-            {
-                Manufacture = manufactureMap,
-                ManufactureId = manufactureMap.Id,
-                Car = car,
-                CarId = car.Id
-            };
-            _manufactureRepository.CreateCarManufacture(carManufacture);
+            return BadRequest();
         }
-
-        return Ok("Успешно сохранено");
     }
 
     //Обновление информации о производстве
@@ -133,49 +94,23 @@ public class ManufactureController : Controller
     [ProducesResponseType(400)]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
-    public IActionResult UpdateManufacture(int manufactureId, [FromBody] ManufactureDto updatedManufacture,
+    public async Task<IActionResult> UpdateManufacture(int manufactureId, [FromBody] ManufactureDto updatedManufacture,
         [FromQuery] int countryId)
     {
-        var validationResult = _validator.Validate(updatedManufacture);
-
-        if (!validationResult.IsValid) return BadRequest(validationResult.Errors);
-
-        if (!_manufactureRepository.ManufactureExists(manufactureId))
+        try
+        {
+            var command = new UpdateManufacture(manufactureId, updatedManufacture);
+            var response = await _mediator.Send(command);
+            return Ok("Обновлено производство " + response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-
-        if (!ModelState.IsValid)
+        }
+        catch (InvalidRequestBodyException)
+        {
             return BadRequest();
-
-        var manufactureMap = _mapper.Map<Manufacture>(updatedManufacture);
-
-        manufactureMap.Country = _countryRepository.GetCountry(countryId);
-        if (!_manufactureRepository.UpdateManufacture(manufactureMap))
-        {
-            ModelState.AddModelError("", "Что-то пошло не так в процессе обновления");
-            return StatusCode(500, ModelState);
         }
-
-        var carManufactures = _manufactureRepository
-            .GetManufacture(manufactureMap.Id).CarManufactures;
-        foreach (var manufacturedCar in updatedManufacture.ManufacturedCars)
-        {
-            if (!_carRepository.CarExists(manufacturedCar.CarId))
-                return NotFound();
-            var car = _carRepository.GetCar(manufacturedCar.CarId);
-            if (!carManufactures.Any(c => c.Car == car))
-            {
-                var carManufacture = new CarManufacture
-                {
-                    Manufacture = manufactureMap,
-                    ManufactureId = manufactureMap.Id,
-                    Car = car,
-                    CarId = car.Id
-                };
-                _manufactureRepository.CreateCarManufacture(carManufacture);
-            }
-        }
-
-        return NoContent();
     }
 
     //Удаление информации о производстве
@@ -183,18 +118,36 @@ public class ManufactureController : Controller
     [ProducesResponseType(400)]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
-    public IActionResult DeleteManufacture(int manufactureId)
+    public async Task<IActionResult> DeleteManufacture(int manufactureId)
     {
-        if (!_manufactureRepository.ManufactureExists(manufactureId)) return NotFound();
+        try
+        {
+            var command = new DeleteManufacture(manufactureId);
+            var response = await _mediator.Send(command);
+            return Ok("Удалено производство " + response);
+        }
+        catch (EntityNotFoundException e)
+        {
+            return NotFound();
+        }
+    }
 
-        var manufactureToDelete = _manufactureRepository.GetManufacture(manufactureId);
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        if (!_manufactureRepository.DeleteManufacture(manufactureToDelete))
-            ModelState.AddModelError("", "Что-то пошло не так в процессе удаления");
-
-        return NoContent();
+    //Удаление информации о машине на производстве
+    [HttpDelete("{manufactureId}/car/{carId}")]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    public async Task<IActionResult> DeleteCarManufacture(int manufactureId, int carId)
+    {
+        try
+        {
+            var command = new DeleteCarManufacture(manufactureId, carId);
+            var response = await _mediator.Send(command);
+            return Ok("Удалена машина " + response);
+        }
+        catch (EntityNotFoundException e)
+        {
+            return NotFound();
+        }
     }
 }

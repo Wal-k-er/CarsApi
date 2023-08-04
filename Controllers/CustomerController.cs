@@ -1,8 +1,9 @@
-﻿using AutoMapper;
-using Cars.Dto;
-using Cars.Interfaces;
+﻿using Cars.Dto;
+using Cars.Exceptions;
+using Cars.Features.CustomerFeatures.Commands;
+using Cars.Features.CustomerFeatures.Queries;
 using Cars.Models;
-using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Cars.Controllers;
@@ -12,134 +13,103 @@ namespace Cars.Controllers;
 public class CustomerController : Controller
 {
     //Внедрение зависимостей
-    private readonly ICustomerRepository _customerRepository;
-    private readonly IValidator<CustomerDto> _validator;
-    private readonly IMapper _mapper;
+    private readonly IMediator _mediator;
 
-    public CustomerController(ICustomerRepository customerRepository, 
-        IValidator<CustomerDto> validator, IMapper mapper)
+    public CustomerController(IMediator mediator)
     {
-        _customerRepository = customerRepository;
-        _validator = validator;
-        _mapper = mapper;
+        _mediator = mediator;
     }
 
     //Получение информации о покупателях
     [HttpGet]
-    [ProducesResponseType(200, Type = typeof(IEnumerable<Customer>))]
-    public IActionResult GetCustomers()
+    [ProducesResponseType(200, Type = typeof(ICollection<Customer>))]
+    public async Task<IActionResult> GetCustomers()
     {
-        var customers = _mapper.Map<List<CustomerDto>>(_customerRepository.GetCustomers());
+        var query = new GetAllCustomers();
+        var response = await _mediator.Send(query);
 
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-        
-        return Ok(customers);
+        return Ok(response);
     }
-    
+
     //Получение информации о покупателе
     [HttpGet("{customerId}")]
     [ProducesResponseType(200, Type = typeof(Customer))]
     [ProducesResponseType(400)]
-    public IActionResult GetCustomer(int customerId)
+    public async Task<IActionResult> GetCustomer(int customerId)
     {
-        if (!_customerRepository.CustomerExists(customerId))
+        try
+        {
+            var query = new GetCustomerById(customerId);
+            var response = await _mediator.Send(query);
+            return Ok(response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-        
-        var customer = _mapper.Map<CustomerDto>(_customerRepository.GetCustomer(customerId));
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-        
-        return Ok(customer);
+        }
     }
-    
+
     //Получение информации о заказах покупателя
     [HttpGet("{customerId}/orders")]
     [ProducesResponseType(200, Type = typeof(IEnumerable<Order>))]
     [ProducesResponseType(400)]
-    public IActionResult GetOrdersByCustomer(int customerId)
+    public async Task<IActionResult> GetOrdersByCustomer(int customerId)
     {
-        if (!_customerRepository.CustomerExists(customerId))
+        try
+        {
+            var query = new GetOrdersByCustomer(customerId);
+            var response = await _mediator.Send(query);
+            return Ok(response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-        
-        var orders = _mapper.Map<List<OrderDto>>(_customerRepository.GetOrdersByCustomer(customerId));
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-        
-        return Ok(orders);
+        }
     }
-    
+
     //Внесение информации о покупателе
     [HttpPost]
     [ProducesResponseType(204)]
     [ProducesResponseType(400)]
-    public IActionResult CreateCustomer([FromBody] CustomerDto customerCreate)
+    public async Task<IActionResult> CreateCustomer([FromBody] CustomerDto customerCreate)
     {
-        var validationResult = _validator.Validate(customerCreate);
-
-        if (!validationResult.IsValid)
+        try
         {
-            return BadRequest(validationResult.Errors);
+            var command = new CreateCustomer(customerCreate);
+            var response = await _mediator.Send(command);
+            return Ok("Создан заказчик " + response);
         }
-        
-        var customer = _customerRepository
-            .GetCustomers()
-            .FirstOrDefault(c => c.FirstName.Trim().ToLower()+" "+ c.LastName.Trim().ToLower() == 
-                                 customerCreate.FirstName.Trim().ToLower()+" "+
-                                 customerCreate.LastName.Trim().ToLower());
-        
-        if (customer != null)
+        catch (EntityNotFoundException e)
         {
-            ModelState.AddModelError("", "Покупатель уже есть");
-            return StatusCode(422, ModelState);
+            return NotFound();
         }
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        var customerMap = _mapper.Map<Customer>(customerCreate);
-        
-        if (!_customerRepository.CreateCustomer(customerMap))
+        catch (InvalidRequestBodyException)
         {
-            ModelState.AddModelError("","В процессе сохранения что-то пошло не так");
-            return StatusCode(500, ModelState);
+            return BadRequest();
         }
-
-        return Ok("Успешно сохранено");
     }
-    
+
     //Обновление информации о покупателе
     [HttpPut("{customerId}")]
     [ProducesResponseType(400)]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
-    public IActionResult UpdateCategory(int customerId, [FromBody]CustomerDto updatedCustomer)
+    public async Task<IActionResult> UpdateCategory(int customerId, [FromBody] CustomerDto updatedCustomer)
     {
-        var validationResult = _validator.Validate(updatedCustomer);
-
-        if (!validationResult.IsValid)
+        try
         {
-            return BadRequest(validationResult.Errors);
+            var command = new UpdateCustomer(customerId, updatedCustomer);
+            var response = await _mediator.Send(command);
+            return Ok("Обновлён заказчик " + response);
         }
-
-        if (!_customerRepository.CustomerExists(customerId))
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-
-        if (!ModelState.IsValid)
-            return BadRequest();
-
-        var customerMap = _mapper.Map<Customer>(updatedCustomer);
-        customerMap.Id = customerId;
-
-        if(!_customerRepository.UpdateCustomer(customerMap))
-        {
-            ModelState.AddModelError("", "Что-то пошло не так в процессе обновления");
-            return StatusCode(500, ModelState);
         }
-
-        return NoContent();
+        catch (InvalidRequestBodyException)
+        {
+            return BadRequest();
+        }
     }
 
     //Удаление информации о покупателе
@@ -147,19 +117,17 @@ public class CustomerController : Controller
     [ProducesResponseType(400)]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
-    public IActionResult DeleteCustomer(int customerId)
+    public async Task<IActionResult> DeleteCustomer(int customerId)
     {
-        if(!_customerRepository.CustomerExists(customerId))
+        try
+        {
+            var command = new DeleteCustomer(customerId);
+            var response = await _mediator.Send(command);
+            return Ok("Удалён заказчик " + response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-        
-        var customerToDelete = _customerRepository.GetCustomer(customerId);
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        if (!_customerRepository.DeleteCustomer(customerToDelete))
-            ModelState.AddModelError("", "Что-то пошло не так в процессе удаления");
-
-        return NoContent();
+        }
     }
 }

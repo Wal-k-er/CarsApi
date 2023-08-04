@@ -2,6 +2,7 @@
 using Cars.Data;
 using Cars.Interfaces;
 using Cars.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cars.Repository;
 
@@ -13,51 +14,51 @@ public class CategoryRepository: ICategoryRepository
     {
         _context = context;
     }
-    public ICollection<Category> GetCategories()
+    public async Task<ICollection<Category>> GetCategories()
     {
-        return _context.Categories.OrderBy(p => p.Id).ToList();
+        return await _context.Categories.OrderBy(p => p.Id).ToListAsync();
     }
 
-    public Category GetCategory(int categoryId)
+    public async Task<Category> GetCategory(int categoryId)
     {
-        return _context.Categories.Where(p => p.Id == categoryId).FirstOrDefault();
+        return await _context.Categories.FirstOrDefaultAsync(p => p.Id == categoryId);
     }
 
-    public ICollection<Car> GetCarsByCategory(int categoryId)
+    public async Task<ICollection<Car>> GetCarsByCategory(int categoryId)
     {
-        var carsByCategory = _context.Cars
-            .Where(p => p.Category.Id == categoryId).ToList();
+        var carsByCategory = await _context.Cars
+            .Where(p => p.Category.Id == categoryId).ToListAsync();
         return carsByCategory;
     }
 
-    public bool CategoryExists(int categoryId)
+    public async Task<bool> CategoryExists(int categoryId)
     {
         return _context.Categories.Any(p => p.Id == categoryId);
     }
 
-    public bool CreateCategory(Category category)
+    public async Task CreateCategory(Category category)
     {
         Console.WriteLine(category.Name);
         
         _context.Add(category);
-        return Save();
+        await Save();
     }
 
-    public bool UpdateCategory(Category category)
+    public async Task UpdateCategory(Category category)
     {
         _context.Update(category);
-        return Save();
+        await Save();
     }
 
-    public bool DeleteCategory(Category category)
+    public async Task DeleteCategory(Category category)
     {
         _context.Remove(category);
-        return Save();
+        await Save();
     }
 
-    public bool Save()
+    public async Task Save()
     {
-        var saved = _context.SaveChanges();
-        return saved > 0 ? true : false;
+        await _context.SaveChangesAsync();
+        
     }
 }

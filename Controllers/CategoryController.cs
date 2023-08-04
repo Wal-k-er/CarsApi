@@ -1,9 +1,9 @@
-﻿using System.Diagnostics;
-using AutoMapper;
-using Cars.Dto;
-using Cars.Interfaces;
+﻿using Cars.Dto;
+using Cars.Exceptions;
+using Cars.Features.CategoryFeatures.Commands;
+using Cars.Features.CategoryFeatures.Queries;
 using Cars.Models;
-using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Cars.Controllers;
@@ -12,133 +12,103 @@ namespace Cars.Controllers;
 [ApiController]
 public class CategoryController : Controller
 {
-    
     //Внедрение зависимостей
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly IValidator<CategoryDto> _validator;
-    private readonly IMapper _mapper;
+    private readonly IMediator _mediator;
 
-    public CategoryController(ICategoryRepository categoryRepository, 
-        IValidator<CategoryDto> validator, IMapper mapper)
+    public CategoryController(IMediator mediator)
     {
-        _categoryRepository = categoryRepository;
-        _validator = validator;
-        _mapper = mapper;
+        _mediator = mediator;
     }
 
     //Получение списка категорий
     [HttpGet]
     [ProducesResponseType(200, Type = typeof(ICollection<Category>))]
-    public IActionResult GetCategories()
+    public async Task<IActionResult> GetCategories()
     {
-        var categories = _mapper.Map<List<CategoryDto>>(_categoryRepository.GetCategories());
-        
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-        
-        return Ok(categories);
+        var query = new GetAllCategories();
+        var response = await _mediator.Send(query);
+
+        return Ok(response);
     }
 
     //Получение информации о категории
     [HttpGet("{categoryId}")]
     [ProducesResponseType(200, Type = typeof(Category))]
     [ProducesResponseType(400)]
-    public IActionResult GetCategory(int categoryId)
+    public async Task<IActionResult> GetCategory(int categoryId)
     {
-        if (!_categoryRepository.CategoryExists(categoryId))
+        try
+        {
+            var query = new GetCategoryById(categoryId);
+            var response = await _mediator.Send(query);
+            return Ok(response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-        
-        var category = _mapper.Map<CategoryDto>(_categoryRepository.GetCategory(categoryId));
-        
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-        
-        return Ok(category);
+        }
     }
 
     //Получение информации о машинах в категории
     [HttpGet("{categoryId}/cars")]
     [ProducesResponseType(200, Type = typeof(ICollection<Car>))]
-    public IActionResult GetCarsByCategory(int categoryId)
+    public async Task<IActionResult> GetCarsByCategory(int categoryId)
     {
-        if (!_categoryRepository.CategoryExists(categoryId))
+        try
+        {
+            var query = new GetCarsByCategory(categoryId);
+            var response = await _mediator.Send(query);
+            return Ok(response);
+        }
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-        
-        var carsByCategory = _mapper.Map<List<CarDto>>(_categoryRepository.GetCarsByCategory(categoryId));
-        
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-        
-        return Ok(carsByCategory);
+        }
     }
 
     //Внесение информации о новой категории
     [HttpPost]
     [ProducesResponseType(204)]
     [ProducesResponseType(400)]
-    public IActionResult CreateCategory([FromBody] CategoryDto categoryCreate)
+    public async Task<IActionResult> CreateCategory([FromBody] CategoryDto categoryCreate)
     {
-        var validationResult = _validator.Validate(categoryCreate);
-
-        if (!validationResult.IsValid)
+        try
         {
-            return BadRequest(validationResult.Errors);
+            var command = new CreateCategory(categoryCreate);
+            var response = await _mediator.Send(command);
+            return Ok("Создана категория " + response);
         }
-        
-        var category = _categoryRepository
-            .GetCategories()
-            .FirstOrDefault(c => c.Name.Trim().ToLower() == categoryCreate.Name.Trim().ToLower());
-        
-        if (category != null)
+        catch (EntityNotFoundException e)
         {
-            ModelState.AddModelError("", "Категория уже есть");
-            return StatusCode(422, ModelState);
+            return NotFound();
         }
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-        
-        var categoryMap = _mapper.Map<Category>(categoryCreate);
-        
-        if (!_categoryRepository.CreateCategory(categoryMap))
+        catch (InvalidRequestBodyException)
         {
-            ModelState.AddModelError("","В процессе сохранения что-то пошло не так");
-            return StatusCode(500, ModelState);
+            return BadRequest();
         }
-
-        return Ok("Успешно сохранено");
     }
-    
+
     //Обновление информации о категории
     [HttpPut("{categoryId}")]
     [ProducesResponseType(400)]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
-    public IActionResult UpdateCategory(int categoryId, [FromBody]CategoryDto updatedCategory)
+    public async Task<IActionResult> UpdateCategory(int categoryId, [FromBody] CategoryDto updatedCategory)
     {
-        var validationResult = _validator.Validate(updatedCategory);
-
-        if (!validationResult.IsValid)
+        try
         {
-            return BadRequest(validationResult.Errors);
+            var command = new UpdateCategory(categoryId, updatedCategory);
+            var response = await _mediator.Send(command);
+            return Ok("Обновлена категория " + response);
         }
-
-        if (!_categoryRepository.CategoryExists(categoryId))
+        catch (EntityNotFoundException e)
+        {
             return NotFound();
-
-        if (!ModelState.IsValid)
-            return BadRequest();
-
-        var categoryMap = _mapper.Map<Category>(updatedCategory);
-        categoryMap.Id = categoryId;
-
-        if(!_categoryRepository.UpdateCategory(categoryMap))
-        {
-            ModelState.AddModelError("", "Что-то пошло не так в процессе обновления");
-            return StatusCode(500, ModelState);
         }
-
-        return NoContent();
+        catch (InvalidRequestBodyException)
+        {
+            return BadRequest();
+        }
     }
 
     //Удаление категории
@@ -146,21 +116,17 @@ public class CategoryController : Controller
     [ProducesResponseType(400)]
     [ProducesResponseType(204)]
     [ProducesResponseType(404)]
-    public IActionResult DeleteCategory(int categoryId)
+    public async Task<IActionResult> DeleteCategory(int categoryId)
     {
-        if(!_categoryRepository.CategoryExists(categoryId))
+        try
+        {
+            var command = new DeleteCategory(categoryId);
+            var response = await _mediator.Send(command);
+            return Ok("Удалена категория " + response);
+        }
+        catch (EntityNotFoundException e)
         {
             return NotFound();
         }
-
-        var categoryToDelete = _categoryRepository.GetCategory(categoryId);
-
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        if(!_categoryRepository.DeleteCategory(categoryToDelete))
-            ModelState.AddModelError("", "Что-то пошло не так в процессе удаления");
-        
-        return NoContent();
     }
 }

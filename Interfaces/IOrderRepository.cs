@@ -5,13 +5,17 @@ namespace Cars.Interfaces;
 
 public interface IOrderRepository
 {
-    ICollection<Order> GetOrders();
-    Order GetOrder(int orderId);
-    ICollection<Car> GetCarsByOrder(int orderId);
-    bool OrdersExists(int orderId);
-    bool CreateOrder(Order order);
-    bool CreateOrderItem(OrderItem orderItem);
-    bool UpdateOrder(Order order);
-    bool DeleteOrder(Order order);
-    bool Save();
+    Task<ICollection<Order>> GetOrders();
+    Task<Order> GetOrder(int orderId);
+    Task<ICollection<Car>> GetCarsByOrder(int orderId);
+    Task<bool> OrdersExists(int orderId);
+    Task CreateOrder(Order order);
+    Task<OrderItem> GetOrderItem(int orderId, int carId);
+    Task<bool> OrderItemExists(int orderId, int carId);
+    Task CreateOrderItem(OrderItem orderItem);
+    Task DeleteOrderItem(OrderItem orderItem);
+    Task DeleteOrderItems(Order order);
+    Task UpdateOrder(Order order);
+    Task DeleteOrder(Order order);
+    Task Save();
 }

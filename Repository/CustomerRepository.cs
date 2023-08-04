@@ -14,51 +14,50 @@ public class CustomerRepository : ICustomerRepository
         _context = context;
     }
     
-    public ICollection<Customer> GetCustomers()
+    public async Task<ICollection<Customer>> GetCustomers()
     {
-        return _context.Customers.OrderBy(p => p.Id).ToList();
+        return await _context.Customers.OrderBy(p => p.Id).ToListAsync();
     }
 
-    public Customer GetCustomer(int customerId)
+    public async Task<Customer> GetCustomer(int customerId)
     {
-        return _context.Customers.Where(p => p.Id == customerId).FirstOrDefault();
+        return await _context.Customers.FirstOrDefaultAsync(p => p.Id == customerId);
     }
 
-    public ICollection<Order> GetOrdersByCustomer(int customerId)
+    public async Task<ICollection<Order>> GetOrdersByCustomer(int customerId)
     {
-        var orderByCustomer = _context.Orders
+        var orderByCustomer = await _context.Orders
             .Where(o => o.Customer.Id == customerId)
             .Include(oi=>oi.OrderItems)
-            .ThenInclude(c=>c.Car).ToList();
+            .ThenInclude(c=>c.Car).ToListAsync();
         return orderByCustomer;
     }
 
-    public bool CustomerExists(int customerId)
+    public async Task<bool> CustomerExists(int customerId)
     {
-        return _context.Customers.Any(c => c.Id == customerId);
+        return await _context.Customers.AnyAsync(c => c.Id == customerId);
     }
 
-    public bool CreateCustomer(Customer customer)
+    public async Task CreateCustomer(Customer customer)
     {
         _context.Add(customer);
-        return Save();
+        await Save();
     }
 
-    public bool UpdateCustomer(Customer customer)
+    public async Task UpdateCustomer(Customer customer)
     {
         _context.Update(customer);
-        return Save();
+        await Save();
     }
 
-    public bool DeleteCustomer(Customer customer)
+    public async Task DeleteCustomer(Customer customer)
     {
         _context.Remove(customer);
-        return Save();
+        await Save();
     }
 
-    public bool Save()
+    public async Task Save()
     {
-        var saved = _context.SaveChanges();
-        return saved > 0 ? true : false;
+        await _context.SaveChangesAsync();
     }
 }

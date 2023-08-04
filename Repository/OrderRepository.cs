@@ -16,63 +16,89 @@ public class OrderRepository : IOrderRepository
         _context = context;
     }
     
-    public ICollection<Order> GetOrders()
+    public async Task<ICollection<Order>> GetOrders()
     {
-        var orders = _context.Orders
+        var orders = await _context.Orders
             .Include(o => o.OrderItems)
-            .ThenInclude(oi => oi.Car).ToList();
+            .ThenInclude(oi => oi.Car).ToListAsync();
         return orders;
     }
 
-    public Order GetOrder(int orderId)
+    public async Task<Order> GetOrder(int orderId)
     {
-        var order = _context.Orders.Where(o => o.Id == orderId)
+        var order = await _context.Orders.Where(o => o.Id == orderId)
             .Include(o => o.OrderItems)
-            .ThenInclude(oi => oi.Car).FirstOrDefault();
+            .ThenInclude(oi => oi.Car).FirstOrDefaultAsync();
         return order;
     }
 
-    public ICollection<Car> GetCarsByOrder(int orderId)
+    public async Task<ICollection<Car>> GetCarsByOrder(int orderId)
     {
-        var carsByOrder = _context.OrderItems
-            .Where(p => p.OrderId == orderId).Select(c=>c.Car).ToList();
+        var carsByOrder = await _context.OrderItems
+            .Where(p => p.OrderId == orderId).Select(c=>c.Car).ToListAsync();
         return carsByOrder;
     }
 
-    public bool OrdersExists(int orderId)
+    public async Task<bool> OrdersExists(int orderId)
     {
-        return _context.Orders.Any(c => c.Id == orderId);
+        return await _context.Orders.AnyAsync(c => c.Id == orderId);
     }
 
-    public bool CreateOrder(Order order)
+    public async Task CreateOrder(Order order)
     {
         _context.Orders.Add(order);
-        return Save();
+        await Save();
     }
 
-    public bool CreateOrderItem(OrderItem orderItem)
+    public async Task<OrderItem> GetOrderItem(int orderId, int carId)
+    {
+        var orderItem = await _context.OrderItems
+            .Where(o => o.OrderId == orderId)
+            .FirstOrDefaultAsync(c => c.CarId==carId);
+        return orderItem;
+    }
+
+    public async Task<bool> OrderItemExists(int orderId, int carId)
+    {
+        return await _context.OrderItems.Where(o => o.OrderId == orderId)
+            .AnyAsync(c => c.CarId == carId);
+    }
+
+    public async Task CreateOrderItem(OrderItem orderItem)
     {
         _context.OrderItems.Add(orderItem);
-        return Save();
+        await Save();
     }
 
-    public bool UpdateOrder(Order order)
+    public async Task DeleteOrderItem(OrderItem orderItem)
+    {
+        _context.OrderItems.Remove(orderItem);
+        await Save();
+    }
+
+    public async Task DeleteOrderItems(Order order)
+    {
+        var orderItems = _context.OrderItems
+            .Where(o => o.Order == order);
+        _context.RemoveRange(orderItems);
+        await Save();
+    }
+
+    public async Task UpdateOrder(Order order)
     {
         _context.Orders.Update(order);
-        return Save();
+        await Save();
     }
 
-    public bool DeleteOrder(Order order)
+    public async Task DeleteOrder(Order order)
     {
-        var orderItems = _context.OrderItems.Where(i => i.OrderId == order.Id);
-        _context.RemoveRange(orderItems);
+        await DeleteOrderItems(order);
         _context.Remove(order);
-        return Save();
+        await Save();
     }
 
-    public bool Save()
+    public async Task Save()
     {
-        var saved = _context.SaveChanges();
-        return saved > 0 ? true : false;
+        await _context.SaveChangesAsync();
     }
 }

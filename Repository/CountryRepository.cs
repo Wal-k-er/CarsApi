@@ -1,6 +1,7 @@
 ﻿using Cars.Data;
 using Cars.Interfaces;
 using Cars.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Cars.Repository;
 
@@ -12,50 +13,50 @@ public class CountryRepository : ICountryRepository
     {
         _context = context;
     }
-    public ICollection<Country> GetCountries()
+    public async Task<ICollection<Country>> GetCountries()
     {
-        return _context.Countries.OrderBy(p => p.Id).ToList();
+        return await _context.Countries.OrderBy(p => p.Id).ToListAsync();
     }
 
-    public Country GetCountry(int countryId)
+    public async Task<Country> GetCountry(int countryId)
     {
-        return _context.Countries.Where(p => p.Id == countryId).FirstOrDefault();
+        return await _context.Countries.FirstOrDefaultAsync(p => p.Id == countryId);
     }
 
-    public ICollection<Manufacture> GetManufacturesByCountry(int countryId)
+    public async Task<ICollection<Manufacture>> GetManufacturesByCountry(int countryId)
     {
-        var manufacturesByCountry = _context.Manufactures
-            .Where(p => p.Country.Id == countryId).ToList();
+        var manufacturesByCountry = await _context.Manufactures
+            .Where(p => p.Country.Id == countryId).ToListAsync();
         return manufacturesByCountry;
     }
 
-    public bool CountryExsists(int countryId)
+    public async Task<bool> CountryExsists(int countryId)
     {
-        return _context.Countries.Any(c => c.Id == countryId);
+        return await _context.Countries.AnyAsync(c => c.Id == countryId);
     }
 
-    public bool CreateCountry(Country country)
+    public async Task CreateCountry(Country country)
     {
         _context.Add(country);
-        return Save();
+        await Save();
     }
 
-    public bool UpdateCountry(Country country)
+    public async Task UpdateCountry(Country country)
     {
         _context.Update(country);
-        return Save();
+        await Save();
     }
 
-    public bool DeleteCountry(Country country)
+    public async Task DeleteCountry(Country country)
     {
         _context.Remove(country);
-        return Save();
+        await Save();
     }
 
-    public bool Save()
+    public async Task Save()
     {
-        var saved = _context.SaveChanges();
-        return saved > 0 ? true : false;
+        await _context.SaveChangesAsync();
+        
     }
     
 }

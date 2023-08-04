@@ -4,12 +4,12 @@ namespace Cars.Interfaces;
 
 public interface ICustomerRepository
 {
-    ICollection<Customer> GetCustomers();
-    Customer GetCustomer(int customerId);
-    ICollection<Order> GetOrdersByCustomer(int customerId);
-    bool CustomerExists(int customerId);
-    bool CreateCustomer(Customer customer);
-    bool UpdateCustomer(Customer customer);
-    bool DeleteCustomer(Customer customer);
-    bool Save();
+    Task<ICollection<Customer>> GetCustomers();
+    Task<Customer> GetCustomer(int customerId);
+    Task<ICollection<Order>> GetOrdersByCustomer(int customerId);
+    Task<bool> CustomerExists(int customerId);
+    Task CreateCustomer(Customer customer);
+    Task UpdateCustomer(Customer customer);
+    Task DeleteCustomer(Customer customer);
+    Task Save();
 }

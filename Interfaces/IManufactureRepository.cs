@@ -5,13 +5,17 @@ namespace Cars.Interfaces;
 
 public interface IManufactureRepository
 {
-    ICollection<Manufacture> GetManufactures();
-    Manufacture GetManufacture(int manufactureId);
-    ICollection<Car> GetCarsByManufacture(int manufactureId);
-    bool ManufactureExists(int manufactureId);
-    bool CreateManufacture(Manufacture manufacture);
-    bool CreateCarManufacture(CarManufacture carManufacture);
-    bool UpdateManufacture(Manufacture manufacture);
-    bool DeleteManufacture(Manufacture manufacture);
-    bool Save();
+    Task<ICollection<Manufacture>> GetManufactures();
+    Task<Manufacture> GetManufacture(int manufactureId);
+    Task<ICollection<Car>> GetCarsByManufacture(int manufactureId);
+    Task<bool> ManufactureExists(int manufactureId);
+    Task CreateManufacture(Manufacture manufacture);
+    Task<CarManufacture> GetCarManufacture(int manufactureId, int carId);
+    Task<bool> CarManufactureExists(int manufactureId, int carId);
+    Task CreateCarManufacture(CarManufacture carManufacture);
+    Task DeleteCarManufacture(CarManufacture carManufacture);
+    Task DeleteCarsManufacture(Manufacture manufacture);
+    Task UpdateManufacture(Manufacture manufacture);
+    Task DeleteManufacture(Manufacture manufacture);
+    Task Save();
 }

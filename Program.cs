@@ -1,10 +1,15 @@
+using System.Reflection;
 using Cars.Data;
 using Cars.Dto;
+using Cars.Helper;
 using Cars.Interfaces;
-using Cars.Models;
+using Cars.PipelineBehaviours;
 using Cars.Repository;
 using Cars.Validators;
 using FluentValidation;
+using Hangfire;
+using Hangfire.PostgreSql;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +25,11 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddMediatR(c => c.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+
+builder.Services.AddTransient<HangfireConfiguration>();
+
 builder.Services.AddScoped<IValidator<CarDto>, CarValidator>();
 builder.Services.AddScoped<IValidator<CategoryDto>, CategoryValidator>();
 builder.Services.AddScoped<IValidator<CountryDto>, CountryValidator>();
@@ -34,11 +44,20 @@ builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IManufactureRepository, ManufactureRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 
+builder.Services.AddScoped<IRandomPriceRepository, RandomPriceRepository>();
+
 builder.Services.AddDbContext<DataContext>(option =>
     option.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHangfire(configuration =>
+    configuration.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
+var hangfireConfiguration = app.Services.GetService<HangfireConfiguration>();
+
+hangfireConfiguration.ScheduleUpdateTask();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -47,8 +66,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-//Изменение поведения При при работе с датами в PostgreSQL
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+app.UseHangfireDashboard();
 
 app.UseHttpsRedirection();
 

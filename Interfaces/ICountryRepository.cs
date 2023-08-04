@@ -4,12 +4,12 @@ namespace Cars.Interfaces;
 
 public interface ICountryRepository
 {
-    ICollection<Country> GetCountries();
-    Country GetCountry(int countryId);
-    ICollection<Manufacture> GetManufacturesByCountry(int countryId);
-    bool CountryExsists(int countryId);
-    bool CreateCountry(Country country);
-    bool UpdateCountry(Country country);
-    bool DeleteCountry(Country country);
-    bool Save();
+    Task<ICollection<Country>> GetCountries();
+    Task<Country>  GetCountry(int countryId);
+    Task<ICollection<Manufacture>> GetManufacturesByCountry(int countryId);
+    Task<bool> CountryExsists(int countryId);
+    Task CreateCountry(Country country);
+    Task UpdateCountry(Country country);
+    Task DeleteCountry(Country country);
+    Task Save();
 }
