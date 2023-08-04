@@ -8,6 +8,6 @@ public class CategoryValidator : AbstractValidator<CategoryDto>
     public CategoryValidator()
     {
         RuleFor(c => c.Name)
-            .NotEmpty().WithMessage("Наименование должно быть");
+            .NotEmpty().MinimumLength(1).WithMessage("Наименование должно быть");
     }
 }

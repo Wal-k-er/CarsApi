@@ -33,7 +33,7 @@ public class CategoryRepository: ICategoryRepository
 
     public async Task<bool> CategoryExists(int categoryId)
     {
-        return _context.Categories.Any(p => p.Id == categoryId);
+        return await _context.Categories.AnyAsync(p => p.Id == categoryId);
     }
 
     public async Task CreateCategory(Category category)

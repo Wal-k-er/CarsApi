@@ -1,12 +1,15 @@
 using System.Reflection;
 using Cars.Data;
 using Cars.Dto;
+using Cars.Features.CarFeatures.Commands;
+using Cars.Features.CategoryFeatures.Commands;
 using Cars.Helper;
 using Cars.Interfaces;
 using Cars.PipelineBehaviours;
 using Cars.Repository;
 using Cars.Validators;
 using FluentValidation;
+using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.PostgreSql;
 using MediatR;
@@ -25,8 +28,11 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddMediatR(c => c.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
-builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+builder.Services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
+builder.Services.AddMediatR(c => 
+    c.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), 
+    typeof(ValidationBehaviour<,>));
 
 builder.Services.AddTransient<HangfireConfiguration>();
 
@@ -43,7 +49,6 @@ builder.Services.AddScoped<ICountryRepository, CountryRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IManufactureRepository, ManufactureRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-
 builder.Services.AddScoped<IRandomPriceRepository, RandomPriceRepository>();
 
 builder.Services.AddDbContext<DataContext>(option =>

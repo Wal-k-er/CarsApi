@@ -45,7 +45,7 @@ public class OrderController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 
@@ -62,7 +62,7 @@ public class OrderController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 
@@ -80,11 +80,7 @@ public class OrderController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
-        }
-        catch (InvalidRequestBodyException)
-        {
-            return BadRequest();
+            return NotFound(e.Message);
         }
     }
 
@@ -104,11 +100,7 @@ public class OrderController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
-        }
-        catch (InvalidRequestBodyException)
-        {
-            return BadRequest();
+            return NotFound(e.Message);
         }
     }
 
@@ -127,7 +119,7 @@ public class OrderController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 
@@ -146,7 +138,7 @@ public class OrderController : Controller
         }
         catch (EntityNotFoundException e)
         {
-            return NotFound();
+            return NotFound(e.Message);
         }
     }
 }
