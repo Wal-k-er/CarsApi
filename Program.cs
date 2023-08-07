@@ -1,8 +1,7 @@
 using System.Reflection;
+using Cars.Consumers;
 using Cars.Data;
 using Cars.Dto;
-using Cars.Features.CarFeatures.Commands;
-using Cars.Features.CategoryFeatures.Commands;
 using Cars.Helper;
 using Cars.Interfaces;
 using Cars.PipelineBehaviours;
@@ -12,6 +11,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.PostgreSql;
+using MassTransit;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -58,12 +58,36 @@ builder.Services.AddHangfire(configuration =>
 
 builder.Services.AddHangfireServer();
 
+var rabbit = new Uri(builder.Configuration.GetConnectionString("RabbitMQConnection"));
+
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumer<CreateOrderConsumer>();
+    x.AddBus(provider => Bus.Factory.CreateUsingRabbitMq(config =>
+    {
+        config.Host(rabbit, h =>
+        {
+            h.Username("test_user");
+            h.Password("user");
+        });
+        config.ReceiveEndpoint("create-order", cfg =>
+        {
+            cfg.ConfigureConsumer<CreateOrderConsumer>(provider);
+        });
+    }));
+    
+});
+
+
 var app = builder.Build();
 
 var hangfireConfiguration = app.Services.GetService<HangfireConfiguration>();
 
 hangfireConfiguration.ScheduleUpdateTask();
 
+var bus = app.Services.GetRequiredService<IBusControl>();
+
+bus.Start();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

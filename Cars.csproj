@@ -13,6 +13,8 @@
         <PackageReference Include="Hangfire" Version="1.8.4" />
         <PackageReference Include="Hangfire.AspNetCore" Version="1.8.4" />
         <PackageReference Include="Hangfire.PostgreSql" Version="1.20.0" />
+        <PackageReference Include="MassTransit" Version="8.0.16" />
+        <PackageReference Include="MassTransit.RabbitMQ" Version="8.0.16" />
         <PackageReference Include="MediatR" Version="12.1.1" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.8" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="7.0.8" />
